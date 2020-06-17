@@ -186,7 +186,7 @@ app.post('/home/pick_color', function(req, res) {
 });
 
 app.get("/team_stats", async (req, res) => {
-	info = await db.task("get-everything", task => task.batch([
+	const info = await db.task("get-everything", task => task.batch([
 		task.any("SELECT * FROM football_games;"),
 		task.any("SELECT COUNT(*) FROM football_games WHERE home_score > visitor_score;"),
 		task.any("SELECT COUNT(*) FROM football_games WHERE home_score < visitor_score;")
@@ -196,6 +196,32 @@ app.get("/team_stats", async (req, res) => {
 		data: info[0],
 		wins: info[1][0].count,
 		losses: info[2][0].count
+	});
+});
+
+app.get("/player_info", async (req, res) => {
+	const info = await db.any("SELECT name, id FROM football_players;");
+	res.render("pages/player_info", {
+		my_title: "Player Info",
+		data: info,
+		playerData: false
+	});
+});
+
+app.get("/player_info/select_player", async (req, res) => {
+	const player_id = req.query.player_choice;
+	const info = await db.task('get-everything', task => {
+		return task.batch([
+			task.any("SELECT name, id FROM football_players;"),
+			task.any("SELECT * FROM football_players WHERE id = $(player_id);", { player_id: player_id }),
+			task.any("SELECT COUNT(*) FROM football_games WHERE $(player_id) = ANY(players);", { player_id: player_id })
+		]);
+	});
+	res.render("pages/player_info", {
+		my_title: "Player Info",
+		data: info[0],
+		playerData: info[1][0],
+		numberGames: info[2][0].count
 	});
 });
 
